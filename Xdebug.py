@@ -15,10 +15,16 @@ original_layout = None
 debug_view = None
 protocol = None
 buffers = {}
+stacks = None
 breakpoint_icon = '../Xdebug/icons/breakpoint'
 current_icon = '../Xdebug/icons/current'
 current_breakpoint_icon = '../Xdebug/icons/current_breakpoint'
 
+class Stack(object):
+    def __init__(file, lineno, where):
+        self.file = file
+        self.lineno = lineno
+        self.where = where
 
 class DebuggerException(Exception):
     pass
@@ -93,7 +99,7 @@ class Protocol(object):
 
     def read(self):
         data = self.read_data()
-        #print '<---', data
+        print '<---', data
         document = parseString(data)
         return document
 
@@ -118,7 +124,7 @@ class Protocol(object):
 
         try:
             self.sock.send(command + '\x00')
-            #print '--->', command
+            print '--->', command
         except Exception, x:
             raise(ProtocolConnectionException, x)
 
@@ -382,6 +388,7 @@ class XdebugCommand(sublime_plugin.TextCommand):
             mapping.update({
                 'xdebug_status': 'Status',
                 'xdebug_execute': 'Execute',
+                'xdebug_jump_to_stack': 'Jump to stack'
             })
 
         self.cmds = mapping.keys()
@@ -498,6 +505,7 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
             protocol.send('stack_get')
             res = protocol.read().firstChild
             result = unicode('')
+            stacks = []
             for child in res.childNodes:
                 if child.nodeName == 'stack':
                     propWhere = child.getAttribute('where')
@@ -507,6 +515,7 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
                     propLine = child.getAttribute('lineno')
                     result = result + unicode('{level:>3}: {type:<10} {where:<10} {filename}:{lineno}\n' \
                                               .format(level=propLevel, type=propType, where=propWhere, lineno=propLine, filename=propFile))
+                    stacks.append(Stack(propFile, int(propLine), propWhere))
             add_debug_info('stack', result)
 
         if res.getAttribute('status') == 'stopping' or res.getAttribute('status') == 'stopped':
@@ -594,6 +603,38 @@ class XdebugExecute(sublime_plugin.TextCommand):
     def on_cancel(self):
         pass
 
+class XdebugJumpToStack(sublime_plugin.TextCommand):
+    '''
+    Jump to a stack frame
+    '''
+    def run(self, edit):
+        row, col = self.view.rowcol(self.view.sel()[0].begin())
+        protocol.send('context_get', d=row)
+        res = protocol.read().firstChild
+        result = ''
+
+        def getValues(node):
+            result = unicode('')
+            for child in node.childNodes:
+                if child.nodeName == 'property':
+                    propName = unicode(child.getAttribute('fullname'))
+                    propType = unicode(child.getAttribute('type'))
+                    propValue = None
+                    try:
+                        propValue = unicode(' '.join(base64.b64decode(t.data) for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE))
+                    except:
+                        propValue = unicode(' '.join(t.data for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE))
+                    if propName:
+                        if propName.lower().find('password') != -1:
+                            propValue = unicode('*****')
+                        result = result + unicode(propName + ' [' + propType + '] = ' + str(propValue) + '\n')
+                        result = result + getValues(child)
+                        if xdebug_current:
+                            xdebug_current.add_context_data(propName, propType, propValue)
+            return result
+
+        result = getValues(res)
+        add_debug_info('context', result)
 
 class EventListener(sublime_plugin.EventListener):
     def on_new(self, view):
