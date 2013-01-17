@@ -428,7 +428,18 @@ class XdebugCommand(sublime_plugin.TextCommand):
                 sublime.status_message('Xdebug: No URL defined in project settings file.')
             window = sublime.active_window()
             window.run_command('hide_panel', {"panel": 'output.xdebug_inspect'})
-            window.set_layout(original_layout)
+            views = window.views_in_group(1) + window.views_in_group(2)
+            if (set([v.name() for v in views]) == set(['Xdebug Context', 'Xdebug Stack'])):
+                for v in views:
+                    window.focus_view(v)
+                    window.run_command("close_file")
+                window.set_layout({
+                        "cols": [0.0, 1.0],
+                        "rows": [0.0, 1.0],
+                        "cells": [[0, 0, 1, 1]]
+                    })
+            else:
+                window.set_layout(original_layout)
 
 
 class XdebugContinueCommand(sublime_plugin.TextCommand):
