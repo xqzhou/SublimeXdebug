@@ -21,7 +21,7 @@ current_icon = '../Xdebug/icons/current'
 current_breakpoint_icon = '../Xdebug/icons/current_breakpoint'
 
 class Stack(object):
-    def __init__(file, lineno, where):
+    def __init__(self, file, lineno, where):
         self.file = file
         self.lineno = lineno
         self.where = where
