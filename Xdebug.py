@@ -7,6 +7,7 @@ import threading
 import types
 import json
 import webbrowser
+import urllib2
 from xml.dom.minidom import parseString
 
 
@@ -479,7 +480,7 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
             if child.nodeName == 'xdebug:message':
                 #print '>>>break ' + child.getAttribute('filename') + ':' + child.getAttribute('lineno')
                 sublime.status_message('Xdebug: breakpoint')
-                xdebug_current = show_file(self.view.window(), child.getAttribute('filename'))
+                xdebug_current = show_file(self.view.window(), urllib2.unquote(child.getAttribute('filename')))
                 xdebug_current.current(int(child.getAttribute('lineno')))
 
         if (res.getAttribute('status') == 'break'):
@@ -522,7 +523,7 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
                     propWhere = child.getAttribute('where')
                     propLevel = child.getAttribute('level')
                     propType = child.getAttribute('type')
-                    propFile = child.getAttribute('filename')
+                    propFile = urllib2.unquote(child.getAttribute('filename'))
                     propLine = child.getAttribute('lineno')
                     result = result + unicode('{level:>3}: {type:<10} {where:<10} {filename}:{lineno}\n' \
                                               .format(level=propLevel, type=propType, where=propWhere, lineno=propLine, filename=propFile))
@@ -708,6 +709,7 @@ def show_file(window, uri):
         transport, filename = uri.split(':///', 1)  # scheme:///C:/path/file => scheme, C:/path/file
     else:
         transport, filename = uri.split('://', 1)  # scheme:///path/file => scheme, /path/file
+    filename = urllib2.unquote(filename)
     if transport == 'file' and os.path.exists(filename):
         window = sublime.active_window()
         views = window.views()
