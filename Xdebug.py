@@ -497,13 +497,13 @@ class XdebugContinueCommand(sublime_plugin.TextCommand):
                         propType = unicode(child.getAttribute('type'))
                         propValue = None
                         try:
-                            propValue = unicode(' '.join(base64.b64decode(t.data) for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE))
+                            propValue = ' '.join(base64.b64decode(t.data).decode('utf-8') for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE)
                         except:
                             propValue = unicode(' '.join(t.data for t in child.childNodes if t.nodeType == t.TEXT_NODE or t.nodeType == t.CDATA_SECTION_NODE))
                         if propName:
                             if propName.lower().find('password') != -1:
                                 propValue = unicode('*****')
-                            result = result + unicode(propName + ' [' + propType + '] = ' + str(propValue) + '\n')
+                            result = result + propName + ' [' + propType + '] = ' + propValue + '\n'
                             result = result + getValues(child)
                             if xdebug_current:
                                 xdebug_current.add_context_data(propName, propType, propValue)
